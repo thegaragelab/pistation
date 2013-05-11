@@ -23,23 +23,24 @@ difference() {
 RASPBERRY_PI_WIDTH = 86;
 RASPBERRY_PI_DEPTH = 18;
 RASPBERRY_PI_SPACE = 20;
-RASPBERRY_PI_SLOT  = 2;
+RASPBERRY_PI_SLOT  = 1.5;
+RASPBERRY_PI_EDGE  = 2;
 
 translate(v = [ RASPBERRY_PI_DEPTH - (RASPBERRY_PI_SLOT / 2), (BLOCK_WIDTH - RASPBERRY_PI_WIDTH) / 2, 0 ]) {
   difference() {
-    cube(size = [ RASPBERRY_PI_SLOT * 3, RASPBERRY_PI_WIDTH, MDF_SIZE ], center = false);
-    translate(v = [ RASPBERRY_PI_SLOT, 0, 1 ]) {
-      cube(size = [ RASPBERRY_PI_SLOT, RASPBERRY_PI_WIDTH, MDF_SIZE ], center = false);
+    cube(size = [ RASPBERRY_PI_SLOT * 3, RASPBERRY_PI_WIDTH, 2 + RASPBERRY_PI_EDGE ], center = false);
+    translate(v = [ RASPBERRY_PI_SLOT, 0, 2 ]) {
+      cube(size = [ RASPBERRY_PI_SLOT, RASPBERRY_PI_WIDTH, RASPBERRY_PI_EDGE ], center = false);
       }
     translate(v = [ 0, RASPBERRY_PI_SPACE, 1 ]) {
-      cube(size = [ RASPBERRY_PI_SLOT * 3, RASPBERRY_PI_WIDTH - (2 * RASPBERRY_PI_SPACE), MDF_SIZE ], center = false);
+      cube(size = [ RASPBERRY_PI_SLOT * 3, RASPBERRY_PI_WIDTH - (2 * RASPBERRY_PI_SPACE), RASPBERRY_PI_EDGE + 1 ], center = false);
       }
     }
   }
 
 // Create a slot to hold the power board
 POWER_WIDTH = 50;
-POWER_SLOT  = 2;
+POWER_SLOT  = 1.5;
 POWER_DEPTH = 3;
 POWER_SPACE = 10;
 
