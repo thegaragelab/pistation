@@ -1,3 +1,6 @@
 [submodule "software/tools"]
 	path = software/tools
 	url = https://github.com/raspberrypi/tools.git
+[submodule "software/WiringPi"]
+	path = software/WiringPi
+	url = https://github.com/thegaragelab/WiringPi.git
