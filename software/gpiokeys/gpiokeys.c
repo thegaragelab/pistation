@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
@@ -34,8 +35,9 @@
 /** Map GPIO inputs to keyboard events
  */
 static struct _GPIO_MAPPING {
-  int m_pin; /** Pin number to monitor */
-  int m_key; /** Keyboard event to send */
+  int  m_pin;   /** Pin number to monitor  */
+  int  m_key;   /** Keyboard event to send */
+  bool m_state; /** Last state             */
   } g_mapping[MAX_BUTTONS];
 
 static int g_maxButton; /** The highest configured button */
@@ -106,6 +108,7 @@ static void daemon_config(int argc, char *argv[]) {
       }
     g_mapping[g_maxButton].m_pin = iPort;
     g_mapping[g_maxButton].m_key = iKey;
+    g_mapping[g_maxButton].m_state = false;
     g_maxButton++;
     logMessage(LOG_INFO, "Mapping GPIO #%i to keycode %i", iPort, iKey);
     }
@@ -116,7 +119,8 @@ static void daemon_config(int argc, char *argv[]) {
 /** Initialise the daemon
  */
 static void daemon_run() {
-  int i;
+  int i, j;
+  bool newstate[MAX_BUTTONS];
   /* Fork the process to start the daemon */
   pid_t pid, sid;
   pid = fork();
@@ -147,8 +151,34 @@ static void daemon_run() {
     }
   for(i=0; i<g_maxButton; i++)
     pinMode(g_mapping[i].m_pin, INPUT);
-  /* Enter the main loop */
+  /* Enter the main loop
+   *
+   * In the loop we scan for key state changes approximately 5 times a second
+   * which should be fast enough for most situations without having the daemon
+   * chewing up too much processing power.
+   */
   syslog(LOG_INFO, "Monitoring keyboard buttons.");
+  while(true) {
+    /* Set initial state */
+    for(i=0; i<g_maxButton; i++)
+      newstate[i] = false;
+    /* Do a set of samples to try and filter out some of the bounce */
+    for(j=0; j<3; j++) {
+      for(i=0; i<g_maxButton; i++)
+        newstate[i] = newstate[i] || !digitalRead(g_mapping[i].m_pin);
+      /* Wait a little bit */
+      delay(10);
+      }
+    /* Check for state changes */
+    for(i=0; i<g_maxButton; i++) {
+      if(g_mapping[i].m_state!=newstate[i]) {
+        g_mapping[i].m_state = newstate[i];
+        logMessage(LOG_INFO, "Sending event for key %i %s.", g_mapping[i].m_key, g_mapping[i].m_state?"DOWN":"UP");
+        }
+      }
+    /* Wait for a bit before starting the next cycle */
+    delay(150);
+    }
   exit(EXIT_SUCCESS);
   }
 
