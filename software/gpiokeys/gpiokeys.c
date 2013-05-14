@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <fcntl.h>
@@ -15,6 +16,7 @@
 #include <unistd.h>
 #include <syslog.h>
 #include <string.h>
+#include <wiringPi.h>
 
 /*--------------------------------------------------------------------------*
 * Constants and structures
@@ -25,6 +27,18 @@
 
 /** Maximum length of strings */
 #define MAX_STRING 256
+
+/** Maximum number of buttons */
+#define MAX_BUTTONS 6
+
+/** Map GPIO inputs to keyboard events
+ */
+static struct _GPIO_MAPPING {
+  int m_pin; /** Pin number to monitor */
+  int m_key; /** Keyboard event to send */
+  } g_mapping[MAX_BUTTONS];
+
+static int g_maxButton; /** The highest configured button */
 
 /*--------------------------------------------------------------------------*
 * Helper functions
@@ -76,6 +90,7 @@ static void daemon_config(int argc, char *argv[]) {
   /* Process the entries in the file */
   char szLine[MAX_STRING];
   int iPort, iKey;
+  g_maxButton = 0;
   while(fgets(szLine, MAX_STRING, fpConfig)) {
     /* Filter out comments and blank lines */
     if((strip(szLine)==0)||(szLine[0]=='#'))
@@ -85,7 +100,14 @@ static void daemon_config(int argc, char *argv[]) {
       logMessage(LOG_CRIT, "Could not parse line '%s'", szLine);
       exit(EXIT_FAILURE);
       }
-    logMessage(LOG_CRIT, "Mapping GPIO #%i to keycode %i", iPort, iKey);
+    if(g_maxButton>=MAX_BUTTONS) {
+      logMessage(LOG_CRIT, "More than %i buttons have been defined.", MAX_BUTTONS);
+      exit(EXIT_FAILURE);
+      }
+    g_mapping[g_maxButton].m_pin = iPort;
+    g_mapping[g_maxButton].m_key = iKey;
+    g_maxButton++;
+    logMessage(LOG_INFO, "Mapping GPIO #%i to keycode %i", iPort, iKey);
     }
   /* Finished with the file */
   fclose(fpConfig);
@@ -94,8 +116,7 @@ static void daemon_config(int argc, char *argv[]) {
 /** Initialise the daemon
  */
 static void daemon_run() {
-  /* Close the current log */
-  closelog();
+  int i;
   /* Fork the process to start the daemon */
   pid_t pid, sid;
   pid = fork();
@@ -105,7 +126,6 @@ static void daemon_run() {
     exit(EXIT_SUCCESS);
   /* Set up the new process to act as a daemon */
   umask(0);
-  openlog(NULL, 0, 0);
   sid = setsid();
   if (sid < 0) {
     syslog(LOG_CRIT, "Unable to set SID for the daemon.");
@@ -116,11 +136,19 @@ static void daemon_run() {
     exit(EXIT_FAILURE);
     }
   /* Close out the standard file descriptors */
+  syslog(LOG_INFO, "Entering daemon mode.");
   close(STDIN_FILENO);
   close(STDOUT_FILENO);
   close(STDERR_FILENO);
+  /* Initialise the IO */
+  if(wiringPiSetup()<0) {
+    syslog(LOG_CRIT, "Could not initialise GPIO.");
+    exit(EXIT_FAILURE);
+    }
+  for(i=0; i<g_maxButton; i++)
+    pinMode(g_mapping[i].m_pin, INPUT);
   /* Enter the main loop */
-  syslog(LOG_DEBUG, "Entering main loop.");
+  syslog(LOG_INFO, "Monitoring keyboard buttons.");
   exit(EXIT_SUCCESS);
   }
 
