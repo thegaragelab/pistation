@@ -1,3 +1,6 @@
 [submodule "software/WiringPi"]
 	path = software/WiringPi
 	url = https://github.com/thegaragelab/WiringPi.git
+[submodule "software/quickui"]
+	path = software/quickui
+	url = ssh://git@github.com/thegaragelab/quickui.git
